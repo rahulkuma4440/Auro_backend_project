@@ -1,70 +1,82 @@
-
 import Post from '../model/post.js';
 
-
-export const createPost = async (request, response) => {
+// Function to create a new post
+export const createNewPost = async (req, res) => {
     try {
-        const post = await new Post(request.body);
-        post.save();
+        const newPost = new Post(req.body);
+        await newPost.save();
 
-        response.status(200).json('Post saved successfully');
-    } catch (error) {
-        response.status(500).json(error);
+        res.status(200).json('Post created successfully');
+    } catch (err) {
+        res.status(500).json(err);
     }
-}
+};
 
-export const updatePost = async (request, response) => {
+// Function to update an existing post
+export const modifyPost = async (req, res) => {
     try {
-        const post = await Post.findById(request.params.id);
+        const post = await Post.findById(req.params.id);
 
         if (!post) {
-            response.status(404).json({ msg: 'Post not found' })
+            return res.status(404).json({ message: 'Post not found' });
         }
-        
-        await Post.findByIdAndUpdate( request.params.id, { $set: request.body })
 
-        response.status(200).json('post updated successfully');
-    } catch (error) {
-        response.status(500).json(error);
+        await Post.findByIdAndUpdate(req.params.id, { $set: req.body });
+
+        res.status(200).json('Post updated successfully');
+    } catch (err) {
+        res.status(500).json(err);
     }
-}
+};
 
-export const deletePost = async (request, response) => {
+// Function to delete a post
+export const removePost = async (req, res) => {
     try {
-        const post = await Post.findById(request.params.id);
-        
-        await post.delete()
+        const post = await Post.findById(req.params.id);
 
-        response.status(200).json('post deleted successfully');
-    } catch (error) {
-        response.status(500).json(error)
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        await post.delete();
+
+        res.status(200).json('Post deleted successfully');
+    } catch (err) {
+        res.status(500).json(err);
     }
-}
+};
 
-export const getPost = async (request, response) => {
+// Function to get a specific post by ID
+export const fetchPost = async (req, res) => {
     try {
-        const post = await Post.findById(request.params.id);
+        const post = await Post.findById(req.params.id);
 
-        response.status(200).json(post);
-    } catch (error) {
-        response.status(500).json(error)
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        res.status(200).json(post);
+    } catch (err) {
+        res.status(500).json(err);
     }
-}
+};
 
-export const getAllPosts = async (request, response) => {
-    let username = request.query.username;
-    let category = request.query.category;
-    let posts;
+// Function to retrieve all posts with optional filters
+export const fetchAllPosts = async (req, res) => {
+    const { username, category } = req.query;
     try {
-        if(username) 
-            posts = await Post.find({ username: username });
-        else if (category) 
+        let posts;
+
+        if (username) {
+            posts = await Post.find({ username });
+        } else if (category) {
             posts = await Post.find({ categories: category });
-        else 
+        } else {
             posts = await Post.find({});
-            
-        response.status(200).json(posts);
-    } catch (error) {
-        response.status(500).json(error)
+        }
+
+        res.status(200).json(posts);
+    } catch (err) {
+        res.status(500).json(err);
     }
-}
+};
