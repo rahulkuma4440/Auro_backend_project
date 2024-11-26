@@ -1,4 +1,3 @@
-
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 
@@ -6,45 +5,49 @@ import Token from '../model/token.js';
 
 dotenv.config();
 
-export const authenticateToken = (request, response, next) => {
-    const authHeader = request.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (token == null) {
-        return response.status(401).json({ msg: 'token is missing' });
-    }
-
-    jwt.verify(token, process.env.ACCESS_SECRET_KEY, (error, user) => {
-        if (error) {
-            return response.status(403).json({ msg: 'invalid token' })
-        }
-
-        request.user = user;
-        next();
-    })
-}
-
-export const createNewToken = async (request, response) => {
-    const refreshToken = request.body.token.split(' ')[1];
-
-    if (!refreshToken) {
-        return response.status(401).json({ msg: 'Refresh token is missing' })
-    }
-
-    const token = await Token.findOne({ token: refreshToken });
+// Middleware to validate and authenticate tokens
+export const validateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader ? authHeader.split(' ')[1] : null;
 
     if (!token) {
-        return response.status(404).json({ msg: 'Refresh token is not valid'});
+        return res.status(401).json({ message: 'Token is missing' });
     }
 
-    jwt.verify(token.token, process.env.REFRESH_SECRET_KEY, (error, user) => {
-        if (error) {
-            response.status(500).json({ msg: 'invalid refresh token'});
+    jwt.verify(token, process.env.ACCESS_SECRET_KEY, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Invalid token' });
         }
-        const accessToken = jwt.sign(user, process.env.ACCESS_SECRET_KEY, { expiresIn: '15m'});
 
-        return response.status(200).json({ accessToken: accessToken })
-    })
+        req.user = user; // Attach the user details to the request object
+        next();
+    });
+};
 
+// Function to handle generating a new access token
+export const generateAccessToken = async (req, res) => {
+    const authToken = req.body.token ? req.body.token.split(' ')[1] : null;
 
-}
+    if (!authToken) {
+        return res.status(401).json({ message: 'Refresh token is missing' });
+    }
+
+    try {
+        const storedToken = await Token.findOne({ token: authToken });
+
+        if (!storedToken) {
+            return res.status(404).json({ message: 'Refresh token is invalid' });
+        }
+
+        jwt.verify(storedToken.token, process.env.REFRESH_SECRET_KEY, (err, user) => {
+            if (err) {
+                return res.status(500).json({ message: 'Invalid refresh token' });
+            }
+
+            const newAccessToken = jwt.sign(user, process.env.ACCESS_SECRET_KEY, { expiresIn: '15m' });
+            return res.status(200).json({ accessToken: newAccessToken });
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'An error occurred while processing the token' });
+    }
+};
